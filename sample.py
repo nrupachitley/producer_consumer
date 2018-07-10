@@ -47,13 +47,21 @@ if __name__ == '__main__':
 
 
     BUFFER = [0] * BUFFER_SIZE
+
+    threads = []
     for p in range(numberOfProducers):
         myProducer = Producer()    #TODO: Have to edit this call as per Producer functon
-        myProducer.start()
+        threads.append(myProducer)
+
     for c in range(numberOfConsumers):
         myConsumer = Consumer()    #TODO: Have to edit this call as per Producer functon
-        myConsumer.start()
+        threads.append(myConsumer)
 
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join()
 
     time.sleep(sleepTime)
     print("End")
