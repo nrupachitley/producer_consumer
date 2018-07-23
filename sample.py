@@ -1,86 +1,87 @@
 from __future__ import print_function
-from threading import Thread, Lock, Semaphore
+from threading import Thread, Lock, Semaphore, current_thread
 import time
 import random
 
 lock = Lock()
 
 BUFFER = []
-BUFFER_SIZE = 5
+BUFFER_SIZE = 10
 full = Semaphore(0)
 empty = Semaphore(BUFFER_SIZE)
 
 IN = 0
 OUT = 0
-# count = 0
+
 
 def insertItem(item_entered):
     global IN, OUT
+    flag = 0
     if (IN + 1) % BUFFER_SIZE != OUT:
         BUFFER[IN] = item_entered
         IN = (IN + 1) % BUFFER_SIZE
-        return 0
-    return 1
+    else:
+        flag = -1
+    return flag
 
 
 def removeItem():
     global IN, OUT
+    flag = 0
+    item_removed = 0
+
     if IN != OUT:
         item_removed = BUFFER[OUT]
         BUFFER[OUT] = -1
         OUT = (OUT + 1) % BUFFER_SIZE
-        return 0, item_removed
-    return 1, 0
-
-
-def printBuffer():
-    myBuffer = ', '.join([str(x) for x in BUFFER])
-    print ("Buffer:", myBuffer)
+    else:
+        flag = -1
+    return flag, item_removed
 
 
 class Producer(Thread):
     def run(self):
-        nums = range(5)  # creates list [1,2,3,4]
+        nums = range(20)
         global BUFFER
-        # empty.acquire(False)
         while True:
             time.sleep(sleepTime)
             num = random.choice(nums)
+
+            empty.acquire()
             lock.acquire()
-            if insertItem(num) == 1:
+            flag = insertItem(num)
+            if flag == -1:
                 print("{} waiting!".format(self.getName()))
-                # full.acquire()
             else:
-                print("{} produced by {}".format(num, self.getName()))
-                # empty.release()
-            printBuffer()
+                print("{} produced by {} at {}".format(num, self.getName(), (BUFFER_SIZE - 1) if IN == 0 else (IN - 1)))
+            print("Buffer:", BUFFER)
             lock.release()
-            # full.release()
+            full.release()
 
 
 class Consumer(Thread):
     def run(self):
         global BUFFER
-        # full.acquire(False)
         while True:
             time.sleep(sleepTime)
+
+            full.acquire()
             lock.acquire()
             flag, item = removeItem()
-            if flag == 1:
+            if flag == -1:
                 print("{} waiting!".format(self.getName()))
-                # empty.acquire()
             else:
-                print("{} consumed by {}".format(item, self.getName()))
-                # full.release()
-            printBuffer()
+                print("{} consumed by {} at {}".format(item, self.getName(), (BUFFER_SIZE - 1) if OUT == 0 else (OUT - 1)))
+            print("Buffer:", BUFFER)
+
             lock.release()
+            empty.release()
 
 
 if __name__ == '__main__':
     sleepTime = input("Insert sleep time for Producer and Consumer threads in seconds: ")
     numberOfProducers = input("Insert number of Producer threads: ")
     numberOfConsumers = input("Insert number of Consumer threads: ")
-
 
     BUFFER = [-1] * BUFFER_SIZE
 
@@ -100,5 +101,6 @@ if __name__ == '__main__':
         t.join()
 
     time.sleep(sleepTime)
+
     print("End")
 
